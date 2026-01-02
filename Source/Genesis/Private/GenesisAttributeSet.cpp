@@ -1,6 +1,8 @@
 
 #include "GenesisAttributeSet.h"
 #include "Net/UnrealNetwork.h"
+#include "GenesisCharacter.h"
+#include "GameplayEffectExtension.h"
 
 UGenesisAttributeSet::UGenesisAttributeSet()
 {
@@ -23,4 +25,25 @@ void UGenesisAttributeSet::OnRep_Health(const FGameplayAttributeData& OldHealth)
 void UGenesisAttributeSet::OnRep_MaxHealth(const FGameplayAttributeData& OldMaxHealth)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UGenesisAttributeSet, MaxHealth, OldMaxHealth);
+}
+
+void UGenesisAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data)
+{
+    Super::PostGameplayEffectExecute(Data);
+
+    if (Data.EvaluatedData.Attribute == GetHealthAttribute())
+    {
+        // Clamp Health
+        SetHealth(FMath::Clamp(GetHealth(), 0.0f, GetMaxHealth()));
+
+        // Check Death
+        if (GetHealth() <= 0.0f)
+        {
+            // Cast to GenesisCharacter and call Die()
+            if (AGenesisCharacter* Avatar = Cast<AGenesisCharacter>(Data.Target.GetAvatarActor()))
+            {
+                Avatar->Die();
+            }
+        }
+    }
 }

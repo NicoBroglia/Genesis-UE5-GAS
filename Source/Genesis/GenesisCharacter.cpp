@@ -1,13 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "GenesisAttributeSet.h"
 #include "GenesisCharacter.h"
+#include "GenesisAttributeSet.h"
 #include "Engine/LocalPlayer.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/Controller.h"
+#include "GameFramework/GameModeBase.h" // Added for Respawn
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
@@ -15,20 +16,15 @@
 
 AGenesisCharacter::AGenesisCharacter()
 {
-	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
-		
-	// Don't rotate when the controller rotates. Let that just affect the camera.
+
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
 
-	// Configure character movement
 	GetCharacterMovement()->bOrientRotationToMovement = true;
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
 
-	// Note: For faster iteration times these variables, and many more, can be tweaked in the Character Blueprint
-	// instead of recompiling to adjust them
 	GetCharacterMovement()->JumpZVelocity = 500.f;
 	GetCharacterMovement()->AirControl = 0.35f;
 	GetCharacterMovement()->MaxWalkSpeed = 500.f;
@@ -36,48 +32,35 @@ AGenesisCharacter::AGenesisCharacter()
 	GetCharacterMovement()->BrakingDecelerationWalking = 2000.f;
 	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
 
-	// Create a camera boom (pulls in towards the player if there is a collision)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
 	CameraBoom->TargetArmLength = 400.0f;
 	CameraBoom->bUsePawnControlRotation = true;
 
-	// Create a follow camera
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
 
-	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
-	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
-
-	// Create the Ability System Component
+	// Create GAS Components
 	AbilitySystemComponent = CreateDefaultSubobject<UAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
 	AbilitySystemComponent->SetIsReplicated(true);
-	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Minimal); // "Minimal" is best for Multi-player Characters, "Mixed" for PlayerState.
+	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Minimal);
 
-	// Create the Attribute Set
 	AttributeSet = CreateDefaultSubobject<UGenesisAttributeSet>(TEXT("AttributeSet"));
 }
 
 void AGenesisCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
-	// Set up action bindings
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent)) {
-		
-		// Jumping
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
-
-		// Moving
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AGenesisCharacter::Move);
 		EnhancedInputComponent->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &AGenesisCharacter::Look);
-
-		// Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AGenesisCharacter::Look);
 	}
 	else
 	{
-		UE_LOG(LogGenesis, Error, TEXT("'%s' Failed to find an Enhanced Input component! This template is built to use the Enhanced Input system. If you intend to use the legacy system, then you will need to update this C++ file."), *GetNameSafe(this));
+		UE_LOG(LogGenesis, Error, TEXT("'%s' Failed to find an Enhanced Input component!"), *GetNameSafe(this));
 	}
 }
 
@@ -85,48 +68,102 @@ void AGenesisCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// --- 1. RESTORED INPUT LOGIC (Essential for Movement) ---
+	// Input Setup
 	if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
 	{
 		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
 		{
-			// This tells the engine to listen to your keyboard/gamepad
 			if (DefaultMappingContext)
 			{
 				Subsystem->AddMappingContext(DefaultMappingContext, 0);
 			}
 		}
 	}
+	if (APlayerController* PC = Cast<APlayerController>(Controller))
+	{
+		PC->SetIgnoreMoveInput(false);
+		PC->SetIgnoreLookInput(false);
+	}
 
-	// --- 2. GAS INITIALIZATION ---
+	// GAS Setup
 	if (AbilitySystemComponent)
 	{
-		// Links the ASC to this specific Actor (Owner, Avatar)
 		AbilitySystemComponent->InitAbilityActorInfo(this, this);
-
-		// Just for safety, ensure AttributeSet is created
-		if (AttributeSet)
-		{
-			// GAS is ready.
-		}
 	}
 }
 
+// --- DEATH SYSTEM IMPLEMENTATION ---
+
+void AGenesisCharacter::Die()
+{
+	if (HasAuthority())
+	{
+		Multicast_Death();
+
+		// Save the controller so we don't lose it!
+		DeathController = GetController();
+
+		GetWorldTimerManager().SetTimer(TimerHandle_Respawn, this, &AGenesisCharacter::Respawn, 5.0f, false);
+	}
+}
+
+void AGenesisCharacter::Multicast_Death_Implementation()
+{
+	// 1. Disable Input
+	if (Controller)
+	{
+		Controller->SetIgnoreMoveInput(true);
+	}
+
+	// 2. Disable Capsule Collision (So other players don't hit the invisible capsule)
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	// 3. Call the Blueprint Event (For Ragdoll/VFX)
+	BP_OnDeath();
+}
+
+void AGenesisCharacter::Respawn()
+{
+	if (HasAuthority())
+	{
+		// 1. Check if we have the controller saved
+		if (DeathController)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Attempting to respawn Controller: %s"), *DeathController->GetName());
+
+			// CRITICAL FIX: Detach the brain from the dead body first!
+			if (DeathController->GetPawn() == this)
+			{
+				DeathController->UnPossess();
+			}
+
+			// 2. Ask GameMode to spawn a new body
+			if (AGameModeBase* GM = GetWorld()->GetAuthGameMode())
+			{
+				GM->RestartPlayer(DeathController);
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("Respawn Failed: DeathController is NULL!"));
+		}
+
+		// 3. Destroy the old corpse
+		Destroy();
+	}
+}
+
+// --- STANDARD MOVEMENT CODE ---
+
 void AGenesisCharacter::Move(const FInputActionValue& Value)
 {
-	// input is a Vector2D
 	FVector2D MovementVector = Value.Get<FVector2D>();
-
-	// route the input
 	DoMove(MovementVector.X, MovementVector.Y);
 }
 
 void AGenesisCharacter::Look(const FInputActionValue& Value)
 {
-	// input is a Vector2D
 	FVector2D LookAxisVector = Value.Get<FVector2D>();
-
-	// route the input
 	DoLook(LookAxisVector.X, LookAxisVector.Y);
 }
 
@@ -134,17 +171,10 @@ void AGenesisCharacter::DoMove(float Right, float Forward)
 {
 	if (GetController() != nullptr)
 	{
-		// find out which way is forward
 		const FRotator Rotation = GetController()->GetControlRotation();
 		const FRotator YawRotation(0, Rotation.Yaw, 0);
-
-		// get forward vector
 		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
-
-		// get right vector 
 		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
-
-		// add movement 
 		AddMovementInput(ForwardDirection, Forward);
 		AddMovementInput(RightDirection, Right);
 	}
@@ -154,7 +184,6 @@ void AGenesisCharacter::DoLook(float Yaw, float Pitch)
 {
 	if (GetController() != nullptr)
 	{
-		// add yaw and pitch input to controller
 		AddControllerYawInput(Yaw);
 		AddControllerPitchInput(Pitch);
 	}
@@ -162,13 +191,11 @@ void AGenesisCharacter::DoLook(float Yaw, float Pitch)
 
 void AGenesisCharacter::DoJumpStart()
 {
-	// signal the character to jump
 	Jump();
 }
 
 void AGenesisCharacter::DoJumpEnd()
 {
-	// signal the character to stop jumping
 	StopJumping();
 }
 

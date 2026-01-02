@@ -11,17 +11,13 @@
 
 class USpringArmComponent;
 class UCameraComponent;
-class UInputMappingContext; // Added this forward declaration for safety
+class UInputMappingContext;
 class UInputAction;
 struct FInputActionValue;
 class UGenesisAttributeSet;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
 
-/**
- * A simple player-controllable third person character
- * Implements a controllable orbiting camera
- */
 UCLASS(config = Game)
 class AGenesisCharacter : public ACharacter, public IAbilitySystemInterface
 {
@@ -40,7 +36,6 @@ class AGenesisCharacter : public ACharacter, public IAbilitySystemInterface
 	UInputMappingContext* DefaultMappingContext;
 
 protected:
-
 	/** Jump Input Action */
 	UPROPERTY(EditAnywhere, Category = "Input")
 	UInputAction* JumpAction;
@@ -58,8 +53,6 @@ protected:
 	UInputAction* MouseLookAction;
 
 public:
-
-	/** Constructor */
 	AGenesisCharacter();
 
 	// --- GAS INTERFACE ---
@@ -71,45 +64,49 @@ public:
 	UPROPERTY()
 	UGenesisAttributeSet* AttributeSet;
 
+	// --- DEATH SYSTEM (NEW) ---
+
+	/** Called by AttributeSet when Health reaches 0 */
+	virtual void Die();
+
+	/** Network function to tell all clients to execute death logic */
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_Death();
+
+	/** The Hybrid Hook: This event runs in Blueprints so you can add Ragdoll/VFX */
+	UFUNCTION(BlueprintImplementableEvent, Category = "Genesis|Combat")
+	void BP_OnDeath();
+
 protected:
+	UPROPERTY()
+	AController* DeathController; // Stores the controller when we die
 
-	/** Initialize input action bindings */
+protected:
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-
-	// --- ADDED THIS LINE TO FIX THE ERROR ---
 	virtual void BeginPlay() override;
 
+	// --- RESPAWN LOGIC (NEW) ---
+	FTimerHandle TimerHandle_Respawn;
+	void Respawn();
+
 protected:
-
-	/** Called for movement input */
 	void Move(const FInputActionValue& Value);
-
-	/** Called for looking input */
 	void Look(const FInputActionValue& Value);
 
 public:
-
-	/** Handles move inputs from either controls or UI interfaces */
 	UFUNCTION(BlueprintCallable, Category = "Input")
 	virtual void DoMove(float Right, float Forward);
 
-	/** Handles look inputs from either controls or UI interfaces */
 	UFUNCTION(BlueprintCallable, Category = "Input")
 	virtual void DoLook(float Yaw, float Pitch);
 
-	/** Handles jump pressed inputs from either controls or UI interfaces */
 	UFUNCTION(BlueprintCallable, Category = "Input")
 	virtual void DoJumpStart();
 
-	/** Handles jump pressed inputs from either controls or UI interfaces */
 	UFUNCTION(BlueprintCallable, Category = "Input")
 	virtual void DoJumpEnd();
 
 public:
-
-	/** Returns CameraBoom subobject **/
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
-
-	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 };
