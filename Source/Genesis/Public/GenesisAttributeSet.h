@@ -20,24 +20,52 @@ class GENESIS_API UGenesisAttributeSet : public UAttributeSet
 public:
 	UGenesisAttributeSet();
 
-	// Required for multiplayer replication
+	// Required for multiplayer replication setup
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	// --- HEALTH ATTRIBUTE ---
-	UPROPERTY(BlueprintReadOnly, Category = "Attributes", ReplicatedUsing = OnRep_Health)
+	// Used to clamp values (Health/Stamina) before they change
+	virtual void PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data) override;
+
+	// ==================================================
+	//  HEALTH ATTRIBUTES
+	// ==================================================
+
+	UPROPERTY(BlueprintReadOnly, Category = "Attributes|Health", ReplicatedUsing = OnRep_Health)
 	FGameplayAttributeData Health;
 	ATTRIBUTE_ACCESSORS(UGenesisAttributeSet, Health);
 
-	UFUNCTION()
-	virtual void OnRep_Health(const FGameplayAttributeData& OldHealth);
-
-	// --- MAX HEALTH ATTRIBUTE ---
-	UPROPERTY(BlueprintReadOnly, Category = "Attributes", ReplicatedUsing = OnRep_MaxHealth)
+	UPROPERTY(BlueprintReadOnly, Category = "Attributes|Health", ReplicatedUsing = OnRep_MaxHealth)
 	FGameplayAttributeData MaxHealth;
 	ATTRIBUTE_ACCESSORS(UGenesisAttributeSet, MaxHealth);
 
 	UFUNCTION()
+	virtual void OnRep_Health(const FGameplayAttributeData& OldHealth);
+
+	UFUNCTION()
 	virtual void OnRep_MaxHealth(const FGameplayAttributeData& OldMaxHealth);
 
-	virtual void PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data) override;
+	// ==================================================
+	//  STAMINA ATTRIBUTES
+	// ==================================================
+
+	UPROPERTY(BlueprintReadOnly, Category = "Attributes|Stamina", ReplicatedUsing = OnRep_Stamina)
+	FGameplayAttributeData Stamina;
+	ATTRIBUTE_ACCESSORS(UGenesisAttributeSet, Stamina);
+
+	UPROPERTY(BlueprintReadOnly, Category = "Attributes|Stamina", ReplicatedUsing = OnRep_MaxStamina)
+	FGameplayAttributeData MaxStamina;
+	ATTRIBUTE_ACCESSORS(UGenesisAttributeSet, MaxStamina);
+
+protected:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stamina")
+	bool bIsExhausted;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stamina")
+	float StaminaRecoveryThreshold; // Set this to 15.0f in constructor or details panel
+
+	UFUNCTION()
+	virtual void OnRep_Stamina(const FGameplayAttributeData& OldStamina);
+
+	UFUNCTION()
+	virtual void OnRep_MaxStamina(const FGameplayAttributeData& OldMaxStamina);
 };
