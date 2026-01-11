@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
-#include "AbilitySystemInterface.h" 
+#include "AbilitySystemInterface.h"
 #include "AbilitySystemComponent.h"
 #include "GenesisCharacter.generated.h"
 
@@ -16,97 +16,90 @@ class UInputAction;
 struct FInputActionValue;
 class UGenesisAttributeSet;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogGenesis, Log, All);
 
 UCLASS(config = Game)
 class AGenesisCharacter : public ACharacter, public IAbilitySystemInterface
 {
-	GENERATED_BODY()
-
-	/** Camera boom positioning the camera behind the character */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	USpringArmComponent* CameraBoom;
-
-	/** Follow camera */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	UCameraComponent* FollowCamera;
-
-	/** MappingContext */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputMappingContext* DefaultMappingContext;
-
-protected:
-	/** Jump Input Action */
-	UPROPERTY(EditAnywhere, Category = "Input")
-	UInputAction* JumpAction;
-
-	/** Move Input Action */
-	UPROPERTY(EditAnywhere, Category = "Input")
-	UInputAction* MoveAction;
-
-	/** Look Input Action */
-	UPROPERTY(EditAnywhere, Category = "Input")
-	UInputAction* LookAction;
-
-	/** Mouse Look Input Action */
-	UPROPERTY(EditAnywhere, Category = "Input")
-	UInputAction* MouseLookAction;
+    GENERATED_BODY()
 
 public:
-	AGenesisCharacter();
+    AGenesisCharacter();
 
-	// --- GAS INTERFACE ---
-	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+    // --- REPLICATION OVERRIDES ---
+    virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+    
+    // Server-side initialization
+    virtual void PossessedBy(AController* NewController) override;
+    
+    // Client-side initialization
+    virtual void OnRep_PlayerState() override; 
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Abilities", meta = (AllowPrivateAccess = "true"))
-	UAbilitySystemComponent* AbilitySystemComponent;
+    // --- COMPONENTS ---
 
-	UPROPERTY()
-	UGenesisAttributeSet* AttributeSet;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+    USpringArmComponent* CameraBoom;
 
-	// --- DEATH SYSTEM (NEW) ---
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+    UCameraComponent* FollowCamera;
 
-	/** Called by AttributeSet when Health reaches 0 */
-	virtual void Die();
+    // --- GAS INTERFACE ---
+    virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
-	/** Network function to tell all clients to execute death logic */
-	UFUNCTION(NetMulticast, Reliable)
-	void Multicast_Death();
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Abilities", meta = (AllowPrivateAccess = "true"))
+    UAbilitySystemComponent* AbilitySystemComponent;
 
-	/** The Hybrid Hook: This event runs in Blueprints so you can add Ragdoll/VFX */
-	UFUNCTION(BlueprintImplementableEvent, Category = "Genesis|Combat")
-	void BP_OnDeath();
+    UPROPERTY()
+    UGenesisAttributeSet* AttributeSet;
+
+    // --- DEATH SYSTEM (REFACTORED) ---
+
+    /** * Core Death State. Replicated to all clients.
+     * Uses RepNotify to trigger visuals (Ragdoll/VFX) cleanly on all clients, 
+     * even those joining late.
+     */
+    UPROPERTY(ReplicatedUsing = OnRep_IsDead, BlueprintReadOnly, Category = "Genesis|State")
+    bool bIsDead;
+
+    UFUNCTION()
+    void OnRep_IsDead();
+
+    /** Triggered by AttributeSet when Health <= 0 */
+    virtual void Die();
+
+    /** Blueprint Hook for Ragdoll/VFX. Called automatically by OnRep_IsDead. */
+    UFUNCTION(BlueprintImplementableEvent, Category = "Genesis|Combat")
+    void BP_OnDeath();
 
 protected:
-	UPROPERTY()
-	AController* DeathController; // Stores the controller when we die
+    UPROPERTY()
+    AController* DeathController; 
+
+    FTimerHandle TimerHandle_Respawn;
+    void Respawn();
+
+    // --- INPUT ---
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+    UInputMappingContext* DefaultMappingContext;
+
+    UPROPERTY(EditAnywhere, Category = "Input")
+    UInputAction* JumpAction;
+
+    UPROPERTY(EditAnywhere, Category = "Input")
+    UInputAction* MoveAction;
+
+    UPROPERTY(EditAnywhere, Category = "Input")
+    UInputAction* LookAction;
 
 protected:
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-	virtual void BeginPlay() override;
+    virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+    virtual void BeginPlay() override;
 
-	// --- RESPAWN LOGIC (NEW) ---
-	FTimerHandle TimerHandle_Respawn;
-	void Respawn();
-
-protected:
-	void Move(const FInputActionValue& Value);
-	void Look(const FInputActionValue& Value);
+    void Move(const FInputActionValue& Value);
+    void Look(const FInputActionValue& Value);
 
 public:
-	UFUNCTION(BlueprintCallable, Category = "Input")
-	virtual void DoMove(float Right, float Forward);
-
-	UFUNCTION(BlueprintCallable, Category = "Input")
-	virtual void DoLook(float Yaw, float Pitch);
-
-	UFUNCTION(BlueprintCallable, Category = "Input")
-	virtual void DoJumpStart();
-
-	UFUNCTION(BlueprintCallable, Category = "Input")
-	virtual void DoJumpEnd();
-
-public:
-	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
-	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+    FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
+    FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 };
