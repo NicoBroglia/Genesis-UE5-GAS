@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GenesisCharacter.h"
+#include "Genesis.h"
 #include "GenesisAttributeSet.h"
 #include "Engine/LocalPlayer.h"
 #include "Camera/CameraComponent.h"

@@ -16,7 +16,6 @@ class UInputAction;
 struct FInputActionValue;
 class UGenesisAttributeSet;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogGenesis, Log, All);
 
 UCLASS(config = Game)
 class AGenesisCharacter : public ACharacter, public IAbilitySystemInterface
