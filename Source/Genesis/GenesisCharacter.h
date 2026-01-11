@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
-#include "Logging/LogMacros.h"
 #include "AbilitySystemInterface.h"
 #include "AbilitySystemComponent.h"
 #include "GenesisCharacter.generated.h"
@@ -15,7 +14,6 @@ class UInputMappingContext;
 class UInputAction;
 struct FInputActionValue;
 class UGenesisAttributeSet;
-
 
 UCLASS(config = Game)
 class AGenesisCharacter : public ACharacter, public IAbilitySystemInterface
@@ -51,22 +49,36 @@ public:
     UPROPERTY()
     UGenesisAttributeSet* AttributeSet;
 
-    // --- DEATH SYSTEM (REFACTORED) ---
+    // --- NEW: HELPER FUNCTIONS FOR BLUEPRINT LOGIC ---
 
-    /** * Core Death State. Replicated to all clients.
-     * Uses RepNotify to trigger visuals (Ragdoll/VFX) cleanly on all clients, 
-     * even those joining late.
-     */
+    /** Directly modifies stamina. Use negative values to drain, positive to regen. */
+    UFUNCTION(BlueprintCallable, Category = "Genesis|GAS")
+    void AdjustStamina(float Amount);
+
+    /** Wrapper for DoMove logic to be used by Touch Interface / BP */
+    UFUNCTION(BlueprintCallable, Category = "Genesis|Movement")
+    void DoMove(float Right, float Forward);
+
+    /** Wrapper for DoLook logic to be used by Touch Interface / BP */
+    UFUNCTION(BlueprintCallable, Category = "Genesis|Movement")
+    void DoLook(float Yaw, float Pitch);
+
+    UFUNCTION(BlueprintCallable, Category = "Genesis|Movement")
+    void DoJumpStart();
+
+    UFUNCTION(BlueprintCallable, Category = "Genesis|Movement")
+    void DoJumpEnd();
+
+    // --- DEATH SYSTEM ---
+
     UPROPERTY(ReplicatedUsing = OnRep_IsDead, BlueprintReadOnly, Category = "Genesis|State")
     bool bIsDead;
 
     UFUNCTION()
     void OnRep_IsDead();
 
-    /** Triggered by AttributeSet when Health <= 0 */
     virtual void Die();
 
-    /** Blueprint Hook for Ragdoll/VFX. Called automatically by OnRep_IsDead. */
     UFUNCTION(BlueprintImplementableEvent, Category = "Genesis|Combat")
     void BP_OnDeath();
 

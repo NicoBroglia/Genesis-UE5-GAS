@@ -13,8 +13,9 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
-#include "Net/UnrealNetwork.h" // Required for DOREPLIFETIME
+#include "Net/UnrealNetwork.h"
 
+// Define the Log Category declared in Genesis.h
 DEFINE_LOG_CATEGORY(LogGenesis);
 
 AGenesisCharacter::AGenesisCharacter()
@@ -42,8 +43,6 @@ AGenesisCharacter::AGenesisCharacter()
     FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
     FollowCamera->bUsePawnControlRotation = false;
 
-    // GAS Setup - Note: Replication Mode 'Mixed' is generally better for Player Characters
-    // so Gameplay Cues work reliably for the owner, but 'Minimal' is acceptable for prototypes.
     AbilitySystemComponent = CreateDefaultSubobject<UAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
     AbilitySystemComponent->SetIsReplicated(true);
     AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
@@ -53,39 +52,35 @@ AGenesisCharacter::AGenesisCharacter()
     bIsDead = false;
 }
 
-// 1. REPLICATION SETUP
+// --- REPLICATION ---
+
 void AGenesisCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-
-    // Replicate the Death State to everyone
     DOREPLIFETIME(AGenesisCharacter, bIsDead);
 }
 
-// 2. ASC INITIALIZATION (The Correct Way)
+// --- GAS INIT ---
+
 void AGenesisCharacter::PossessedBy(AController* NewController)
 {
     Super::PossessedBy(NewController);
-
-    // SERVER Init
     if (AbilitySystemComponent)
     {
         AbilitySystemComponent->InitAbilityActorInfo(this, this);
     }
-
-    // Add Default Abilities or Effects here if needed...
 }
 
 void AGenesisCharacter::OnRep_PlayerState()
 {
     Super::OnRep_PlayerState();
-
-    // CLIENT Init
     if (AbilitySystemComponent)
     {
         AbilitySystemComponent->InitAbilityActorInfo(this, this);
     }
 }
+
+// --- INPUT BINDING ---
 
 void AGenesisCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
@@ -113,21 +108,15 @@ void AGenesisCharacter::BeginPlay()
     }
 }
 
-// 3. ROBUST DEATH SYSTEM
+// --- DEATH SYSTEM ---
+
 void AGenesisCharacter::Die()
 {
-    // Ensure we only run this once on the Server
     if (HasAuthority() && !bIsDead)
     {
         bIsDead = true;
-        
-        // Save controller for respawn logic
         DeathController = GetController();
-
-        // Server must call OnRep manually for itself
         OnRep_IsDead();
-
-        // Start Respawn Timer
         GetWorldTimerManager().SetTimer(TimerHandle_Respawn, this, &AGenesisCharacter::Respawn, 5.0f, false);
     }
 }
@@ -136,13 +125,8 @@ void AGenesisCharacter::OnRep_IsDead()
 {
     if (bIsDead)
     {
-        // 1. Disable Input
         if (Controller) Controller->SetIgnoreMoveInput(true);
-        
-        // 2. Disable Collision
         GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-        
-        // 3. Trigger Visuals (Ragdoll, etc) in BP
         BP_OnDeath();
     }
 }
@@ -151,49 +135,81 @@ void AGenesisCharacter::Respawn()
 {
     if (HasAuthority() && DeathController)
     {
-        // Detach controller from dead body
         if (DeathController->GetPawn() == this)
         {
             DeathController->UnPossess();
         }
-
-        // Restart
         if (AGameModeBase* GM = GetWorld()->GetAuthGameMode())
         {
             GM->RestartPlayer(DeathController);
         }
-
         Destroy();
     }
 }
 
-// --- MOVEMENT ---
+// --- MOVEMENT IMPLEMENTATION ---
 
 void AGenesisCharacter::Move(const FInputActionValue& Value)
 {
-    if (bIsDead) return; // Prevent movement if dead
+    if (bIsDead) return;
 
     FVector2D MovementVector = Value.Get<FVector2D>();
-    if (Controller != nullptr)
-    {
-        const FRotator Rotation = Controller->GetControlRotation();
-        const FRotator YawRotation(0, Rotation.Yaw, 0);
-        const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
-        const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
-        AddMovementInput(ForwardDirection, MovementVector.Y);
-        AddMovementInput(RightDirection, MovementVector.X);
-    }
+    DoMove(MovementVector.X, MovementVector.Y);
 }
 
 void AGenesisCharacter::Look(const FInputActionValue& Value)
 {
     if (bIsDead) return; 
-
     FVector2D LookAxisVector = Value.Get<FVector2D>();
-    if (Controller != nullptr)
+    DoLook(LookAxisVector.X, LookAxisVector.Y);
+}
+
+// --- EXPOSED FUNCTIONS FOR BLUEPRINT & TOUCH INTERFACE ---
+
+void AGenesisCharacter::DoMove(float Right, float Forward)
+{
+    if (Controller != nullptr && !bIsDead)
     {
-        AddControllerYawInput(LookAxisVector.X);
-        AddControllerPitchInput(LookAxisVector.Y);
+        const FRotator Rotation = Controller->GetControlRotation();
+        const FRotator YawRotation(0, Rotation.Yaw, 0);
+        
+        const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+        const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+
+        AddMovementInput(ForwardDirection, Forward);
+        AddMovementInput(RightDirection, Right);
+    }
+}
+
+void AGenesisCharacter::DoLook(float Yaw, float Pitch)
+{
+    if (Controller != nullptr && !bIsDead)
+    {
+        AddControllerYawInput(Yaw);
+        AddControllerPitchInput(Pitch);
+    }
+}
+
+void AGenesisCharacter::DoJumpStart()
+{
+    if (!bIsDead) Jump();
+}
+
+void AGenesisCharacter::DoJumpEnd()
+{
+    if (!bIsDead) StopJumping();
+}
+
+// --- GAS HELPER ---
+
+void AGenesisCharacter::AdjustStamina(float Amount)
+{
+    if (AbilitySystemComponent && AttributeSet)
+    {
+        float CurrentStamina = AbilitySystemComponent->GetNumericAttribute(UGenesisAttributeSet::GetStaminaAttribute());
+        float MaxStamina = AbilitySystemComponent->GetNumericAttribute(UGenesisAttributeSet::GetMaxStaminaAttribute());
+        float NewValue = FMath::Clamp(CurrentStamina + Amount, 0.0f, MaxStamina);
+        AbilitySystemComponent->SetNumericAttributeBase(UGenesisAttributeSet::GetStaminaAttribute(), NewValue);
     }
 }
 
