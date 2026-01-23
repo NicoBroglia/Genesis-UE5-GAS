@@ -18,7 +18,8 @@ public class Genesis : ModuleRules
 			"StateTreeModule",
 			"GameplayStateTreeModule",
 			"UMG",
-			"Slate"
+			"Slate",
+			"EnhancedInput",
 		});
 
 		PublicDependencyModuleNames.AddRange(new string[] {
