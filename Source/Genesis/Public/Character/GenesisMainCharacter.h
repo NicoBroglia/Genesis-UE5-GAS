@@ -13,5 +13,6 @@ UCLASS()
 class GENESIS_API AGenesisMainCharacter : public AGenesisCharacterBase
 {
 	GENERATED_BODY()
-	
+public:
+		AGenesisMainCharacter();
 };
