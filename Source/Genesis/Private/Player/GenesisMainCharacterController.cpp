@@ -16,19 +16,31 @@ AGenesisMainCharacterController::AGenesisMainCharacterController()
 void AGenesisMainCharacterController::BeginPlay()
 {
 	Super::BeginPlay();
-	check(GenesisCharacterContext);
-	
-	UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
-	check(Subsystem);
-	Subsystem->AddMappingContext(GenesisCharacterContext, 0);
-	
-	bShowMouseCursor = true;
-	DefaultMouseCursor = EMouseCursor::Hand;
-	
-	FInputModeGameAndUI InputModeData;
-	InputModeData.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-	InputModeData.SetHideCursorDuringCapture(false);
-	SetInputMode(InputModeData);
+
+	// Only execute this on the machine that actually controls this player
+	if (IsLocalPlayerController())
+	{
+		check(GenesisCharacterContext);
+		
+		UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
+		if (Subsystem)
+		{
+			Subsystem->AddMappingContext(GenesisCharacterContext, 0);
+		}
+		
+		bShowMouseCursor = false; 
+	    
+		FInputModeGameOnly InputModeData;
+		SetInputMode(InputModeData);
+
+		if (PlayerCameraManager)
+		{
+			PlayerCameraManager->ViewPitchMin = PitchMin;
+			PlayerCameraManager->ViewPitchMax = PitchMax;
+			PlayerCameraManager->ViewYawMin = YawMin;
+			PlayerCameraManager->ViewYawMax = YawMax;
+		}
+	}
 }
 
 void AGenesisMainCharacterController::SetupInputComponent()
@@ -42,17 +54,24 @@ void AGenesisMainCharacterController::SetupInputComponent()
         
 		// Bind Look
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AGenesisMainCharacterController::Look);
+
+		// Bind Mouse Look (re-using the same Look function)
+		EnhancedInputComponent->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &AGenesisMainCharacterController::Look);
 	}
 	
 }
 
 void AGenesisMainCharacterController::Look(const FInputActionValue& InputActionValue)
 {
-	const FVector2D LookAxisVector = InputActionValue.Get<FVector2D>();
+	const FVector2D LookAxisVector = InputActionValue.Get<FVector2D>() * LookSensitivity;
+
+	// Apply Inversion Toggles
+	const float YawValue = bInvertYaw ? -LookAxisVector.X : LookAxisVector.X;
+	const float PitchValue = bInvertPitch ? -LookAxisVector.Y : LookAxisVector.Y;
 
 	// Add Yaw (Left/Right) and Pitch (Up/Down) input to the Controller
-	AddYawInput(LookAxisVector.X);
-	AddPitchInput(LookAxisVector.Y);
+	AddYawInput(YawValue);
+	AddPitchInput(PitchValue);
 }
 
 void AGenesisMainCharacterController::Move(const FInputActionValue& InputActionValue)
@@ -75,30 +94,4 @@ void AGenesisMainCharacterController::Move(const FInputActionValue& InputActionV
 	}
 }
 
-/* course implementation for a top down game
-void AGenesisMainCharacterController::SetupInputComponent()
-{
-	Super::SetupInputComponent();
-	
-	UEnhancedInputComponent*	EnhancedInputComponent = CastChecked<UEnhancedInputComponent>(InputComponent);
-	
-	EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AGenesisMainCharacterController::Move);
-}
-
-void AGenesisMainCharacterController::Move(const FInputActionValue& InputActionValue)
-{
-	const FVector2D InputAxisVector = InputActionValue.Get<FVector2D>();
-	const FRotator Rotation = GetControlRotation();
-	const FRotator YawRotation (0.f, Rotation.Yaw, 0.f);
-	
-	const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
-	const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
-
-	if (APawn* ControlledPawn = GetPawn<APawn>())
-	{
-		ControlledPawn->AddMovementInput(ForwardDirection, InputAxisVector.Y);
-		ControlledPawn->AddMovementInput(RightDirection, InputAxisVector.X);
-	}
-}
-*/
 
