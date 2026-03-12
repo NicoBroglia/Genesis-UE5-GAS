@@ -2,6 +2,8 @@
 
 #include "Character/GenesisCharacterBase.h"
 
+#include "AbilitySystemComponent.h"
+
 AGenesisCharacterBase::AGenesisCharacterBase()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -9,6 +11,11 @@ AGenesisCharacterBase::AGenesisCharacterBase()
 	Weapon = CreateDefaultSubobject<USkeletalMeshComponent>("Weapon");
 	Weapon->SetupAttachment(GetMesh(), FName("WeaponHandSocket"));
 	Weapon->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+}
+
+UAbilitySystemComponent* AGenesisCharacterBase::GetAbilitySystemComponent() const
+{
+	return AbilitySystemComponent;
 }
 
 void AGenesisCharacterBase::BeginPlay()

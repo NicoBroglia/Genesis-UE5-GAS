@@ -19,9 +19,10 @@ public class Genesis : ModuleRules
 			"GameplayStateTreeModule",
 			"UMG",
 			"Slate",
+			"GameplayAbilities",
 			"EnhancedInput",
 		});
-
+		
 		PublicDependencyModuleNames.AddRange(new string[] {
 		"Core",
 		"CoreUObject",
@@ -49,7 +50,9 @@ public class Genesis : ModuleRules
 			"Genesis/Variant_SideScrolling/Interfaces",
 			"Genesis/Variant_SideScrolling/UI"
 		});
-
+        
+        PrivateDependencyModuleNames.AddRange(new string[] { "GameplayAbilities", "GameplayTags", "GameplayTasks"});
+        
 		// Uncomment if you are using Slate UI
 		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
 

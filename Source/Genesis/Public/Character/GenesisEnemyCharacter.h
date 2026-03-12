@@ -14,5 +14,6 @@ UCLASS()
 class GENESIS_API AGenesisEnemyCharacter : public AGenesisCharacterBase, public IEnemyInterface
 {
 	GENERATED_BODY()
-	
+public:
+	AGenesisEnemyCharacter();
 };
