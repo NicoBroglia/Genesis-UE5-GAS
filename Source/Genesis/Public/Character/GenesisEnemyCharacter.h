@@ -16,4 +16,7 @@ class GENESIS_API AGenesisEnemyCharacter : public AGenesisCharacterBase, public 
 	GENERATED_BODY()
 public:
 	AGenesisEnemyCharacter();
+	
+protected:
+	virtual void BeginPlay() override;
 };

@@ -11,6 +11,8 @@ AGenesisPlayerState::AGenesisPlayerState()
 {
 	AbilitySystemComponent = CreateDefaultSubobject<UGenesisAbilitySystemComponent>("AbilitySystemComponent");
 	AbilitySystemComponent->SetIsReplicated(true);
+	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
+	
 	
 	AttributeSet = CreateDefaultSubobject<UGenesisAttributeSet>("AttributeSet");
 	
