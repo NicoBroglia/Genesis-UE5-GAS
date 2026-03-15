@@ -24,12 +24,7 @@ void AGenesisPlayerController::BeginPlay()
 			// add the controls to the player screen
 			MobileControlsWidget->AddToPlayerScreen(0);
 
-		} else {
-
-			UE_LOG(LogGenesis, Error, TEXT("Could not spawn mobile controls widget."));
-
 		}
-
 	}
 }
 
