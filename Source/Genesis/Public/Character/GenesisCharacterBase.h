@@ -17,9 +17,6 @@ class GENESIS_API AGenesisCharacterBase : public ACharacter, public IAbilitySyst
 
 public:
 	AGenesisCharacterBase();
-
-	virtual void PossessedBy(AController* NewController) override;
-	virtual void OnRep_PlayerState() override;
 	
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 	UAttributeSet* GetAttributeSet() const { return AttributeSet;  }
@@ -35,6 +32,5 @@ protected:
 	
 	UPROPERTY()
 	TObjectPtr<UAttributeSet> AttributeSet;
-private:
-		void InitAbilityActorInfo();
+
 };

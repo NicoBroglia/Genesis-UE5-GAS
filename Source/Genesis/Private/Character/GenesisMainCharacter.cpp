@@ -3,9 +3,13 @@
 
 #include "Character/GenesisMainCharacter.h"
 
+#include "AbilitySystemComponent.h"
+#include "Player/GenesisMainCharacterController.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
+#include "Player/GenesisPlayerState.h"
+#include "UI/HUD/GenesisHUD.h"
 
 AGenesisMainCharacter::AGenesisMainCharacter()
 {
@@ -53,3 +57,39 @@ AGenesisMainCharacter::AGenesisMainCharacter()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 }
+
+
+void AGenesisMainCharacter::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+	
+	//init ability actor info for the server
+	InitAbilityActorInfo();
+}
+
+void AGenesisMainCharacter::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+	
+	//init ability actor info for the server
+	InitAbilityActorInfo();
+}
+	
+void AGenesisMainCharacter::InitAbilityActorInfo()
+{
+	AGenesisPlayerState* GenesisPlayerState = GetPlayerState<AGenesisPlayerState>();
+	check( GenesisPlayerState );
+	GenesisPlayerState->GetAbilitySystemComponent()->InitAbilityActorInfo(GenesisPlayerState, this);
+	AbilitySystemComponent = GenesisPlayerState->GetAbilitySystemComponent();
+	AttributeSet = GenesisPlayerState->GetAttributeSet();
+	
+
+	if (AGenesisMainCharacterController* GenesisPlayerController = Cast<AGenesisMainCharacterController>(GetController()))
+	{
+		if (AGenesisHUD* GenesisHUD = Cast<AGenesisHUD>(GenesisPlayerController->GetHUD()))
+		{
+			GenesisHUD->InitOverlay(GenesisPlayerController, GenesisPlayerState, AbilitySystemComponent, AttributeSet);
+		}
+	}
+}
+

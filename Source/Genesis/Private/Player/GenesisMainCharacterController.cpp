@@ -17,9 +17,8 @@ void AGenesisMainCharacterController::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Only execute this on the machine that actually controls this player
-	if (IsLocalPlayerController())
-	{
+	//if (IsLocalPlayerController())
+	//{
 		check(GenesisCharacterContext);
 		
 		UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
@@ -41,7 +40,7 @@ void AGenesisMainCharacterController::BeginPlay()
 			PlayerCameraManager->ViewYawMax = YawMax;
 		}
 	}
-}
+//}
 
 void AGenesisMainCharacterController::SetupInputComponent()
 {

@@ -18,6 +18,14 @@ class GENESIS_API AGenesisMainCharacter : public AGenesisCharacterBase
 	GENERATED_BODY()
 public:
 		AGenesisMainCharacter();
+		virtual void PossessedBy(AController* NewController) override;
+		virtual void OnRep_PlayerState() override;
+	
+	/** Returns CameraBoom subobject **/
+	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
+	/** Returns FollowCamera subobject **/
+	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+	
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement")
@@ -37,9 +45,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UCameraComponent> FollowCamera;
 
-public:
-	/** Returns CameraBoom subobject **/
-	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
-	/** Returns FollowCamera subobject **/
-	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+	
+private:
+	void InitAbilityActorInfo();
 };
