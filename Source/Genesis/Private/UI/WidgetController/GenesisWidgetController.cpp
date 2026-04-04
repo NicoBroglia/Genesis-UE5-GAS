@@ -10,3 +10,13 @@ void UGenesisWidgetController::SetWidgetControllerParams(const FWidgetController
 	AbilitySystemComponent = WCParams.AbilitySystemComponent;
 	AttributeSet = WCParams.AttributeSet;
 }
+
+void UGenesisWidgetController::BroadCastInitialValues()
+{
+	
+}
+
+void UGenesisWidgetController::BindCallbacksToDependencies()
+{
+	
+}

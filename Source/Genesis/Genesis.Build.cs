@@ -8,6 +8,7 @@ public class Genesis : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
+		// Consolidated all necessary modules here
 		PublicDependencyModuleNames.AddRange(new string[] {
 			"Core",
 			"CoreUObject",
@@ -19,22 +20,14 @@ public class Genesis : ModuleRules
 			"GameplayStateTreeModule",
 			"UMG",
 			"Slate",
-			"GameplayAbilities",
-			"EnhancedInput",
-		});
-		
-		PublicDependencyModuleNames.AddRange(new string[] {
-		"Core",
-		"CoreUObject",
-		"Engine",
-		"InputCore",
-		"EnhancedInput",
-		"GameplayAbilities",
-		"GameplayTags",
-		"GameplayTasks"
+			"GameplayAbilities", // GAS Core
+			"GameplayTags",      // Required for GAS
+			"GameplayTasks"      // Required for GAS
 		});
 
-        PublicIncludePaths.AddRange(new string[] {
+		// Removed the redundant second AddRange block for better practice
+
+		PublicIncludePaths.AddRange(new string[] {
 			"Genesis",
 			"Genesis/Variant_Platforming",
 			"Genesis/Variant_Platforming/Animation",
@@ -51,14 +44,10 @@ public class Genesis : ModuleRules
 			"Genesis/Variant_SideScrolling/UI"
 		});
         
-        PrivateDependencyModuleNames.AddRange(new string[] { "GameplayAbilities", "GameplayTags", "GameplayTasks"});
-        
-		// Uncomment if you are using Slate UI
-		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
-
-		// Uncomment if you are using online features
-		// PrivateDependencyModuleNames.Add("OnlineSubsystem");
-
-		// To include OnlineSubsystemSteam, add it to the plugins section in your uproject file with the Enabled attribute set to true
+		// Removed GAS from PrivateDependencyModuleNames since they are already in Public.
+		// This prevents the linker from doing double work.
+		PrivateDependencyModuleNames.AddRange(new string[] { 
+			"SlateCore" 
+		});
 	}
 }

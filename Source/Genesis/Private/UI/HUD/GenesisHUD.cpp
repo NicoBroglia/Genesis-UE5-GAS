@@ -12,7 +12,7 @@ UOverlayGenesisWidgetController* AGenesisHUD::GetOverlayWidgetController(const F
 	{
 		OverlayWidgetController = NewObject<UOverlayGenesisWidgetController>(this, OverlayWidgetControllerClass);
 		OverlayWidgetController->SetWidgetControllerParams(WCParams);
-		
+		OverlayWidgetController->BindCallbacksToDependencies();
 		return OverlayWidgetController;
 	}
 	return OverlayWidgetController;
@@ -30,6 +30,6 @@ void AGenesisHUD::InitOverlay(APlayerController* PC, APlayerState* PS, UAbilityS
 	UOverlayGenesisWidgetController* WidgetController = GetOverlayWidgetController(WidgetControllerParams);
 	
 	OverlayWidget->SetWidgetController(WidgetController);
-	
+	WidgetController->BroadCastInitialValues();
 	Widget->AddToViewport();
 }

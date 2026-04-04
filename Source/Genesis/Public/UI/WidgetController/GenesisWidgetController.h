@@ -41,6 +41,8 @@ class GENESIS_API UGenesisWidgetController : public UObject
 public:
 	UFUNCTION(BlueprintCallable)
 	void SetWidgetControllerParams(const FWidgetControllerParams& WCParams);
+	virtual void BroadCastInitialValues();
+	virtual void BindCallbacksToDependencies();
 	
 protected:
 	
