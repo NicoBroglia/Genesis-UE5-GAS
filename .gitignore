@@ -73,3 +73,20 @@ Plugins/**/Intermediate/*
 
 # Cache files for the editor to use
 DerivedDataCache/*
+
+# Third-party content (licensed: not redistributable in a public repo)
+Content/Marketplace/
+Content/Fab/
+Content/Genesis/Art/Materials/Fab/
+Content/Characters/
+Content/ThirdPerson/
+Content/LevelPrototyping/
+Content/Input/
+Content/Variant_*/
+Content/__ExternalActors__/Marketplace/
+Content/__ExternalActors__/Demo/
+Content/__ExternalActors__/Variant_*/
+Content/__ExternalActors__/ThirdPerson/
+Source/Genesis/Variant_*/
+.idea/
+*.DotSettings.user
